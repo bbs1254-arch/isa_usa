@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RS_TV 자동 업로드 시스템</title>
+    <!-- Tailwind CSS CDN 로드 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Inter 폰트 설정 */
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+
+    <!-- 헤더 섹션 -->
+    <header class="bg-gray-800 shadow-lg sticky top-0 z-10">
+        <div class="container mx-auto p-4 flex justify-between items-center">
+            <h1 class="text-3xl font-bold text-red-500">RS_TV 2025</h1>
+            <nav>
+                <button class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-300 shadow-md" onclick="loadAndRender()">
+                    새 영상 불러오기 (시뮬레이션)
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- 메인 콘텐츠 및 상태 알림 -->
+    <main class="container mx-auto p-6 mt-4">
+
+        <!-- 🔔 상태 알림 패널 -->
+        <div id="status-panel" class="bg-green-600/90 text-white p-4 rounded-xl shadow-xl mb-8 transition-opacity duration-500 opacity-0 hidden">
+            <p class="font-bold text-lg flex items-center">
+                <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span id="status-message"></span>
+            </p>
+        </div>
+
+        <h2 class="text-2xl font-semibold mb-6 border-b border-gray-700 pb-2 text-gray-200">오늘의 Short 2025 영상 목록</h2>
+        
+        <!-- 🎬 영상 목록이 표시될 그리드 컨테이너 -->
+        <div id="video-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <!-- 영상 카드는 JavaScript에 의해 동적으로 여기에 삽입됩니다. -->
+            <div class="col-span-full text-center py-12 text-gray-500" id="loading-indicator">
+                <svg class="animate-spin h-8 w-8 text-red-500 mx-auto mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Google Drive에서 영상 목록을 불러오는 중...
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // DOM 요소 가져오기
+        const videoGrid = document.getElementById('video-grid');
+        const statusPanel = document.getElementById('status-panel');
+        const statusMessage = document.getElementById('status-message');
+        const loadingIndicator = document.getElementById('loading-indicator');
+
+        // 🎥 영상 데이터 구조 (실제 Google Drive API에서 가져와야 할 데이터 구조를 시뮬레이션)
+        const mockVideos = [
+            { id: 'v1', title: 'RS_TV 2025 Short #1: 밈 대방출', date: '2025-12-05', thumbnailUrl: 'https://placehold.co/400x225/111827/FFFFFF?text=Meme+Short' },
+            { id: 'v2', title: 'RS_TV 2025 Short #2: AI 코딩 트렌드', date: '2025-12-06', thumbnailUrl: 'https://placehold.co/400x225/111827/FFFFFF?text=AI+Coding' },
+            { id: 'v3', title: 'RS_TV 2025 Short #3: 여행 계획 꿀팁', date: '2025-12-06', thumbnailUrl: 'https://placehold.co/400x225/111827/FFFFFF?text=Travel+Tip' },
+            { id: 'v4', title: 'RS_TV 2025 Short #4: 오늘의 인기 레시피', date: '2025-12-07', thumbnailUrl: 'https://placehold.co/400x225/111827/FFFFFF?text=Recipe' },
+        ];
+
+        /**
+         * @function renderVideoCard
+         * @description 단일 영상 데이터를 HTML 카드로 변환하여 반환합니다.
+         */
+        function renderVideoCard(video) {
+            // 실제 영상의 썸네일과 재생 링크는 Google Drive API를 통해 생성해야 합니다.
+            // 여기서는 플레이스 홀더 이미지와 목업 링크를 사용합니다.
+            return `
+                <a href="#" class="block bg-gray-800 rounded-xl overflow-hidden shadow-2xl hover:shadow-red-500/50 transform hover:scale-[1.02] transition duration-300">
+                    <img src="${video.thumbnailUrl}" alt="${video.title} 썸네일" class="w-full h-auto object-cover aspect-video">
+                    <div class="p-4">
+                        <h3 class="text-lg font-semibold truncate text-gray-100">${video.title}</h3>
+                        <p class="text-sm text-gray-400 mt-1">${video.date}</p>
+                    </div>
+                </a>
+            `;
+        }
+
+        /**
+         * @function updateStatus
+         * @description 상단 상태 패널 메시지를 업데이트하고 표시합니다.
+         * @param {string} message - 표시할 메시지
+         * @param {string} type - 'success' 또는 'error' (색상 변경용)
+         */
+        function updateStatus(message, type = 'success') {
+            statusMessage.textContent = message;
+            statusPanel.classList.remove('bg-green-600/90', 'bg-red-600/90');
+            if (type === 'success') {
+                statusPanel.classList.add('bg-green-600/90');
+            } else {
+                statusPanel.classList.add('bg-red-600/90');
+            }
+            statusPanel.classList.remove('hidden', 'opacity-0');
+            statusPanel.classList.add('opacity-100');
+
+            // 5초 후 메시지 자동 숨김
+            setTimeout(() => {
+                statusPanel.classList.remove('opacity-100');
+                statusPanel.classList.add('opacity-0');
+                setTimeout(() => {
+                    statusPanel.classList.add('hidden');
+                }, 500);
+            }, 5000);
+        }
+
+        /**
+         * @function fetchVideosFromGoogleDrive
+         * @description (백엔드 Python API를 호출하는 것을 시뮬레이션)
+         * 실제로는 여기서 Python 백엔드 서버의 /api/videos 엔드포인트를 호출하여
+         * Google Drive에 저장된 'RS_TV / short 2025' 폴더의 영상 목록을 JSON 형태로 받아와야 합니다.
+         */
+        async function fetchVideosFromGoogleDrive() {
+            loadingIndicator.classList.remove('hidden');
+            videoGrid.innerHTML = ''; // 기존 목록 초기화
+
+            // 실제 API 호출 대신, 2초 지연 후 목업 데이터 반환 시뮬레이션
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    resolve(mockVideos);
+                }, 2000);
+            });
+        }
+
+        /**
+         * @function loadAndRender
+         * @description 영상 데이터를 불러와 화면에 렌더링하고 상태 메시지를 표시하는 메인 함수
+         */
+        async function loadAndRender() {
+            try {
+                // 1. Google Drive API로부터 영상 목록 불러오기 시도
+                const videos = await fetchVideosFromGoogleDrive();
+                
+                loadingIndicator.classList.add('hidden');
+
+                // 2. 불러온 데이터를 화면에 렌더링
+                if (videos && videos.length > 0) {
+                    let htmlContent = videos.map(renderVideoCard).join('');
+                    videoGrid.innerHTML = htmlContent;
+                    
+                    // 3. ✨ 요청하신 성공 메시지 표시
+                    updateStatus('RS_TV에 자동 업로드 완료. (총 ' + videos.length + '개 영상 불러옴)');
+                } else {
+                    videoGrid.innerHTML = '<div class="col-span-full text-center py-12 text-gray-500">현재 폴더에 표시할 영상이 없습니다.</div>';
+                    updateStatus('업로드 완료. (새로운 영상 없음)', 'success');
+                }
+
+            } catch (error) {
+                loadingIndicator.classList.add('hidden');
+                console.error('영상 로딩 중 오류 발생:', error);
+                videoGrid.innerHTML = '<div class="col-span-full text-center py-12 text-red-400">시스템 오류: Google Drive API 연동에 실패했습니다. 백엔드(Python) 설정을 확인해주세요.</div>';
+                updateStatus('영상 목록 불러오기 실패. (API 오류)', 'error');
+            }
+        }
+
+        // 페이지 로드 시 자동 실행
+        window.onload = loadAndRender;
+    </script>
+</body>
+</html>
